@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 import pymongo
@@ -14,29 +14,33 @@ CORS(app)
 
 db = client.fish_db
 
-def to_json(data):
-    return jsonify(json.loads(json.dumps(data, default=str)))
-
 @app.route('/api', methods=['POST'])
 def new_post():
-    post = request.get_json()
-    ret = db.posts.insert_one(post)
-    return to_json({
-      'message': 'new post added',
-      'acknowledged': ret.acknowledged,
-      'inserted_id': ret.inserted_id
-      })
+    try:
+        post = request.get_json()
+        ret = db.posts.insert_one(post)
+        return jsonify({
+          'message': 'new post added',
+          'acknowledged': ret.acknowledged,
+          'inserted_id': str(ret.inserted_id)
+          })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api', methods=['GET'])
 def get_posts():
-    ret = []
-    for post in db.posts.find():
-        ret += [post]
-    return to_json(ret)
+    try:
+        res = db.posts.find({}, {'_id': False}).limit(100)
+        return jsonify(list(res))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
